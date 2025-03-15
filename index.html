@@ -10,10 +10,13 @@
 </head>
 <body>
     <div id="app">
-        <div class="collumns">
+        <div class="columns">
             <div class="column">
                 <h2>Сделать(макс. 3)</h2>
-                <button>создать карточку</button>
+                <button @click="addCard(0)">+ создать карточку</button>
+                <div v-for="card in columns[0]" :key="card.id" class="card">
+                    <note-card :card="card"></note-card>
+                </div>
             </div>
             <div class="column">
                 <h2>В процессе(макс. 5)</h2>

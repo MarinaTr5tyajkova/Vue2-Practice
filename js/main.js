@@ -18,11 +18,15 @@ Vue.component('note-card', {
                 :disabled="card.tasks.length >= 5"
                 style="margin-top: 10px;"
             >+ Задача</button>
-            <p v-if="card.completedAt">Завершено: {{ new Date(card.completedAt).toLocaleString() }}</p>
         </div>
     `,
     methods: {
-    
+        addTask() {
+            this.card.tasks.push({ text: '', completed: false });
+        },
+        removeTask(index) {
+            this.card.tasks.splice(index, 1);
+        }
     }
 });
 
@@ -32,20 +36,19 @@ new Vue({
         columns: [[], [], []],
         isColumn1Blocked: false
     },
-    mounted() { 
-        this.loadData();
-    },
     methods: {
-        addCard() {
-
+        addCard(columnIndex) {
+            const newCard = {
+                id: Date.now(),
+                title: '',
+                tasks: Array(3).fill(0).map(() => ({ 
+                    text: '', 
+                    completed: false 
+                })),
+                column: columnIndex,
+                completedAt: null
+            };
+            this.columns[columnIndex].push(newCard);
+        }
     }
-}
 });
-
-new Vue ({
-    el: '#app',
-    data: {
-        collumns: [[], [], []],
-        is
-    }
-})
