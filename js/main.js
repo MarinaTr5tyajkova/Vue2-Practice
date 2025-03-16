@@ -11,6 +11,9 @@ Vue.component('note-card', {
             <button @click="add" :disabled="!canAdd">+ Задача</button>
             <button v-if="card.isEditing" @click="$emit('save-card')" :disabled="!valid">Сохранить</button>
             <div v-if="error" class="error">{{ error }}</div>
+            <div v-if="card.completedAt" class="completed-date">
+                Завершено: {{ formatDate(card.completedAt) }}
+            </div>
         </div>
     `,
     data: () => ({
@@ -45,6 +48,10 @@ Vue.component('note-card', {
             this.error = null;
             if (!this.card.title || this.card.title.trim() === '') this.error = 'Название обязательно';
             else if (this.card.tasks.some(t => !t.text || t.text.trim() === '')) this.error = 'Все задачи должны быть заполнены';
+        },
+        formatDate(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString('ru-RU');
         }
     }
 });
@@ -77,7 +84,8 @@ new Vue({
                 title: '',
                 isEditing: true,
                 column: 0,
-                tasks: tasks
+                tasks: tasks,
+                completedAt: null
             });
         },
         saveCard(card) {
@@ -101,8 +109,12 @@ new Vue({
             }
             const progress = (completed / card.tasks.length) * 100;
             
-            if (progress >= 100) this.move(card, 2);
-            else if (progress > 50 && card.column === 0) this.move(card, 1);
+            if (progress >= 100) {
+                card.completedAt = Date.now();
+                this.move(card, 2);
+            } else if (progress > 50 && card.column === 0) {
+                this.move(card, 1);
+            }
         },
         move(card, to) {
             const fromColumn = this.columns[card.column];
