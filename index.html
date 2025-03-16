@@ -11,19 +11,30 @@
 <body>
     <div id="app">
         <div class="columns">
-            <div class="column">
-                <h2>Сделать(макс. 3)</h2>
-                <button @click="addCard(0)">+ создать карточку</button>
-                <div v-for="card in columns[0]" :key="card.id" class="card">
-                    <note-card :card="card"></note-card>
-                </div>
-            </div>
-            <div class="column">
-                <h2>В процессе(макс. 5)</h2>
-            </div>
-            <div class="column">
-                <h2>Готово</h2>
-            </div>
+            <task-column 
+                title="Сделать (макс. 3)" 
+                :cards="columns[0]" 
+                :max-cards="3"
+                :column-index="0"
+                @add-card="addCard"
+                @card-updated="updateCard"
+            ></task-column>
+            
+            <task-column 
+                title="В процессе (макс. 5)" 
+                :cards="columns[1]" 
+                :max-cards="5"
+                :column-index="1"
+                @card-updated="updateCard"
+            ></task-column>
+            
+            <task-column 
+                title="Готово" 
+                :cards="columns[2]" 
+                :max-cards="Infinity"
+                :column-index="2"
+                @card-updated="updateCard"
+            ></task-column>
         </div>
     </div>
 </body>
