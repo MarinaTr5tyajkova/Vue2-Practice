@@ -2,42 +2,14 @@ Vue.component('note-card', {
     props: ['card'],
     template: `
         <div class="card">
-            <input 
-                type="text" 
-                v-model.trim="card.title"
-                placeholder="Название"
-                :disabled="!card.isEditing"
-                @input="validateCard"
-            >
+            <input type="text" v-model="card.title" placeholder="Название" :disabled="!card.isEditing" @input="validate">
             <div v-for="(task, i) in card.tasks" :key="i">
-                <input 
-                    type="checkbox" 
-                    v-model="task.completed"
-                    :disabled="card.isEditing || !task.text.trim()"
-                >
-                <input 
-                    type="text" 
-                    v-model.trim="task.text"
-                    :disabled="!card.isEditing"
-                    @input="validateCard"
-                >
-                <button 
-                    @click="removeTask(i)" 
-                    :disabled="!card.isEditing || card.tasks.length <= 3"
-                >-</button>
+                <input type="checkbox" v-model="task.completed" :disabled="card.isEditing || !task.text" @change="$emit('change')">
+                <input type="text" v-model="task.text" :disabled="!card.isEditing" @input="validate">
+                <button @click="remove(i)" :disabled="!card.isEditing || card.tasks.length <= 3">-</button>
             </div>
-            
-            <button 
-                @click="addTask" 
-                :disabled="!canAddTask"
-            >+ Задача</button>
-            
-            <button 
-                v-if="card.isEditing"
-                @click="$emit('save-card')"
-                :disabled="!isCardValid"
-            >Сохранить заметку</button>
-            
+            <button @click="add" :disabled="!canAdd">+ Задача</button>
+            <button v-if="card.isEditing" @click="$emit('save-card')" :disabled="!valid">Сохранить</button>
             <div v-if="error" class="error">{{ error }}</div>
         </div>
     `,
@@ -45,35 +17,34 @@ Vue.component('note-card', {
         error: null
     }),
     computed: {
-        isCardValid() {
-            return this.card.title.trim() && 
-                   this.card.tasks.length >= 3 &&
-                   this.card.tasks.every(t => t.text.trim())
+        valid() {
+            if (!this.card.title || this.card.title.trim() === '') return false;
+            if (this.card.tasks.length < 3) return false;
+            for (let task of this.card.tasks) {
+                if (!task.text || task.text.trim() === '') return false;
+            }
+            return true;
         },
-        canAddTask() {
-            return this.card.isEditing && 
-                   this.card.tasks.length < 5 && 
-                   this.card.tasks.every(t => t.text.trim())
+        canAdd() {
+            if (!this.card.isEditing) return false;
+            if (this.card.tasks.length >= 5) return false;
+            for (let task of this.card.tasks) {
+                if (!task.text || task.text.trim() === '') return false;
+            }
+            return true;
         }
     },
     methods: {
-        addTask() {
-            if (this.canAddTask) {
-                this.card.tasks.push({ text: '', completed: false });
-            }
+        add() {
+            if (this.canAdd) this.card.tasks.push({ text: '', completed: false });
         },
-        removeTask(index) {
-            this.card.tasks.splice(index, 1);
+        remove(index) {
+            this.card.tasks = this.card.tasks.filter((_, i) => i !== index);
         },
-        validateCard() {
+        validate() {
             this.error = null;
-            if (!this.card.title.trim()) {
-                this.error = 'Название не может быть пустым';
-                return;
-            }
-            if (this.card.tasks.some(t => !t.text.trim())) {
-                this.error = 'Все задачи должны быть заполнены';
-            }
+            if (!this.card.title || this.card.title.trim() === '') this.error = 'Название обязательно';
+            else if (this.card.tasks.some(t => !t.text || t.text.trim() === '')) this.error = 'Все задачи должны быть заполнены';
         }
     }
 });
@@ -83,25 +54,12 @@ Vue.component('task-column', {
     template: `
         <div class="column">
             <h2>{{ title }}</h2>
-            <button 
-                v-if="showAddButton"
-                @click="$emit('add-card')" 
-                :disabled="cards.length >= maxCards"
-            >+ Создать карточку</button>
-            
-            <note-card 
-                v-for="card in cards" 
-                :key="card.id"
-                :card="card"
-                @save-card="$emit('save-card', card)"
-            ></note-card>
+            <button v-if="maxCards === 3" @click="$emit('add-card')" :disabled="cards.length >= maxCards">+ Создать</button>
+            <note-card v-for="card in cards" :key="card.id" :card="card" 
+                @save-card="$emit('save-card', card)" @change="$emit('change', card)">
+            </note-card>
         </div>
-    `,
-    computed: {
-        showAddButton() {
-            return this.maxCards === 3;
-        }
-    }
+    `
 });
 
 new Vue({
@@ -111,22 +69,58 @@ new Vue({
     }),
     methods: {
         addCard() {
+            const tasks = [];
+            for (let i = 0; i < 3; i++) tasks.push({ text: '', completed: false });
+            
             this.columns[0].push({
                 id: Date.now(),
                 title: '',
                 isEditing: true,
-                tasks: Array(3).fill().map(() => ({
-                    text: '',
-                    completed: false
-                }))
+                column: 0,
+                tasks: tasks
             });
         },
         saveCard(card) {
-            if (card.title.trim() && 
-                card.tasks.length >= 3 &&
-                card.tasks.every(t => t.text.trim())) {
+            if (this.validate(card)) {
                 card.isEditing = false;
+                this.checkProgress(card);
+            }
+        },
+        validate(card) {
+            if (!card.title || card.title.trim() === '') return false;
+            if (card.tasks.length < 3) return false;
+            for (let task of card.tasks) {
+                if (!task.text || task.text.trim() === '') return false;
+            }
+            return true;
+        },
+        checkProgress(card) {
+            let completed = 0;
+            for (let task of card.tasks) {
+                if (task.completed) completed++;
+            }
+            const progress = (completed / card.tasks.length) * 100;
+            
+            if (progress >= 100) this.move(card, 2);
+            else if (progress > 50 && card.column === 0) this.move(card, 1);
+        },
+        move(card, to) {
+            const fromColumn = this.columns[card.column];
+            const index = fromColumn.indexOf(card);
+            if (index > -1) {
+                const newColumn = this.columns[card.column].filter(c => c !== card);
+                this.columns[card.column] = newColumn;
+                card.column = to;
+                this.columns[to].push(card);
             }
         }
+    },
+    watch: {
+        columns: {
+            handler() {
+                this.columns[0].concat(this.columns[1]).forEach(c => this.checkProgress(c));
+            },
+            deep: true
+        }
     }
-});git 
+});

@@ -11,25 +11,9 @@
 <body>
     <div id="app">
         <div class="columns">
-            <task-column 
-                title="Сделать (макс. 3)" 
-                :cards="columns[0]" 
-                :max-cards="3"
-                @add-card="addCard"
-                @save-card="saveCard"
-            ></task-column>
-            
-            <task-column 
-                title="В процессе (макс. 5)" 
-                :cards="columns[1]" 
-                :max-cards="5"
-            ></task-column>
-            
-            <task-column 
-                title="Готово" 
-                :cards="columns[2]" 
-                :max-cards="Infinity"
-            ></task-column>
+            <task-column title="Сделать (макс. 3)" :cards="columns[0]" :max-cards="3" @add-card="addCard" @save-card="saveCard"></task-column>
+            <task-column title="В процессе (макс. 5)" :cards="columns[1]" :max-cards="5"></task-column>
+            <task-column title="Готово" :cards="columns[2]" :max-cards="Infinity"></task-column>
         </div>
     </div>
 </body>
