@@ -15,25 +15,20 @@
                 title="Сделать (макс. 3)" 
                 :cards="columns[0]" 
                 :max-cards="3"
-                :column-index="0"
                 @add-card="addCard"
-                @card-updated="updateCard"
+                @save-card="saveCard"
             ></task-column>
             
             <task-column 
                 title="В процессе (макс. 5)" 
                 :cards="columns[1]" 
                 :max-cards="5"
-                :column-index="1"
-                @card-updated="updateCard"
             ></task-column>
             
             <task-column 
                 title="Готово" 
                 :cards="columns[2]" 
                 :max-cards="Infinity"
-                :column-index="2"
-                @card-updated="updateCard"
             ></task-column>
         </div>
     </div>

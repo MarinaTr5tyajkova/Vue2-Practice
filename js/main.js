@@ -4,105 +4,129 @@ Vue.component('note-card', {
         <div class="card">
             <input 
                 type="text" 
-                v-model="card.title"
-                @blur="validateTitle"
+                v-model.trim="card.title"
                 placeholder="Название"
+                :disabled="!card.isEditing"
+                @input="validateCard"
             >
             <div v-for="(task, i) in card.tasks" :key="i">
                 <input 
                     type="checkbox" 
                     v-model="task.completed"
-                    :disabled="!task.text.trim()"
+                    :disabled="card.isEditing || !task.text.trim()"
                 >
                 <input 
                     type="text" 
                     v-model.trim="task.text"
-                    @blur="validateTask(i)"
+                    :disabled="!card.isEditing"
+                    @input="validateCard"
                 >
                 <button 
                     @click="removeTask(i)" 
-                    :disabled="card.tasks.length <= 3"
+                    :disabled="!card.isEditing || card.tasks.length <= 3"
                 >-</button>
             </div>
+            
             <button 
                 @click="addTask" 
-                :disabled="card.tasks.length >= 5"
+                :disabled="!canAddTask"
             >+ Задача</button>
+            
+            <button 
+                v-if="card.isEditing"
+                @click="$emit('save-card')"
+                :disabled="!isCardValid"
+            >Сохранить заметку</button>
+            
             <div v-if="error" class="error">{{ error }}</div>
         </div>
     `,
-    data() {
-        return { error: null };
+    data: () => ({
+        error: null
+    }),
+    computed: {
+        isCardValid() {
+            return this.card.title.trim() && 
+                   this.card.tasks.length >= 3 &&
+                   this.card.tasks.every(t => t.text.trim())
+        },
+        canAddTask() {
+            return this.card.isEditing && 
+                   this.card.tasks.length < 5 && 
+                   this.card.tasks.every(t => t.text.trim())
+        }
     },
     methods: {
         addTask() {
-            this.card.tasks.push({ text: '', completed: false });
-            this.$emit('card-updated', this.card);
+            if (this.canAddTask) {
+                this.card.tasks.push({ text: '', completed: false });
+            }
         },
         removeTask(index) {
             this.card.tasks.splice(index, 1);
-            this.$emit('card-updated', this.card);
         },
-        validateTitle() {
+        validateCard() {
+            this.error = null;
             if (!this.card.title.trim()) {
-                this.error = 'Поле "Название" не может быть пустым.';
-            } else {
-                this.error = null;
+                this.error = 'Название не может быть пустым';
+                return;
             }
-        },
-        validateTask(index) {
-            if (!this.card.tasks[index].text.trim()) {
-                this.error = `Задача ${index + 1} не может быть пустой.`;
-            } else {
-                this.error = null;
+            if (this.card.tasks.some(t => !t.text.trim())) {
+                this.error = 'Все задачи должны быть заполнены';
             }
         }
     }
 });
 
 Vue.component('task-column', {
-    props: ['title', 'cards', 'maxCards', 'columnIndex'],
+    props: ['title', 'cards', 'maxCards'],
     template: `
         <div class="column">
             <h2>{{ title }}</h2>
             <button 
-                v-if="columnIndex === 0"
-                @click="$emit('add-card', columnIndex)" 
+                v-if="showAddButton"
+                @click="$emit('add-card')" 
                 :disabled="cards.length >= maxCards"
             >+ Создать карточку</button>
-            <div v-for="card in cards" :key="card.id">
-                <note-card 
-                    :card="card" 
-                    @card-updated="$emit('card-updated', $event)"
-                ></note-card>
-            </div>
+            
+            <note-card 
+                v-for="card in cards" 
+                :key="card.id"
+                :card="card"
+                @save-card="$emit('save-card', card)"
+            ></note-card>
         </div>
-    `
+    `,
+    computed: {
+        showAddButton() {
+            return this.maxCards === 3;
+        }
+    }
 });
 
 new Vue({
     el: '#app',
-    data: {
+    data: () => ({
         columns: [[], [], []]
-    },
+    }),
     methods: {
-        addCard(columnIndex) {
-            const newCard = {
+        addCard() {
+            this.columns[0].push({
                 id: Date.now(),
                 title: '',
-                tasks: Array(3).fill(null).map(() => ({
+                isEditing: true,
+                tasks: Array(3).fill().map(() => ({
                     text: '',
                     completed: false
-                })),
-                column: columnIndex,
-                completedAt: null
-            };
-            this.columns[columnIndex].push(newCard);
+                }))
+            });
         },
-        updateCard(updatedCard) {
-            const columnIndex = updatedCard.column;
-            const cardIndex = this.columns[columnIndex].findIndex(c => c.id === updatedCard.id);
-            this.$set(this.columns[columnIndex], cardIndex, updatedCard);
+        saveCard(card) {
+            if (card.title.trim() && 
+                card.tasks.length >= 3 &&
+                card.tasks.every(t => t.text.trim())) {
+                card.isEditing = false;
+            }
         }
     }
-});
+});git 
