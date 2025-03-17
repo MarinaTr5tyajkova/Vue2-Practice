@@ -142,9 +142,13 @@ new Vue({
                 this.isColumnLocked = this.shouldLockColumn;
                 this.lockMessage = this.isColumnLocked ? 'Столбец заблокирован до завершения одной из карточек во втором столбце.' : '';
                 this.createMessage = this.hasUnsavedCards ? 'Сначала сохраните текущую карточку.' : '';
+                this.saveData();
             },
             deep: true
         }
+    },
+    mounted() {
+        this.loadData();
     },
     methods: {
         addCard() {
@@ -194,6 +198,15 @@ new Vue({
             this.$set(this.columns, card.column, newColumn);
             card.column = toColumn;
             this.columns[toColumn].push(card);
+        },
+        saveData() {
+            localStorage.setItem('taskManagerData', JSON.stringify(this.columns));
+        },
+        loadData() {
+            const storedData = localStorage.getItem('taskManagerData');
+            if (storedData) {
+                this.columns = JSON.parse(storedData);
+            }
         }
     }
 });
