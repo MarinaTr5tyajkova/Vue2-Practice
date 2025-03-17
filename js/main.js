@@ -80,16 +80,17 @@ Vue.component('note-card', {
 });
 
 Vue.component('task-column', {
-    props: ['title', 'cards', 'maxCards', 'locked', 'message'],
+    props: ['title', 'cards', 'maxCards', 'locked', 'message', 'createMessage'],
     template: `
         <div class="column">
             <h2>{{ title }}</h2>
             <button 
                 v-if="maxCards === 3" 
                 @click="$emit('add-card')" 
-                :disabled="cards.length >= maxCards || locked"
+                :disabled="cards.length >= maxCards || locked || createMessage"
             >+ Создать</button>
             <div v-if="message" class="message">{{ message }}</div>
+            <div v-if="createMessage" class="message">{{ createMessage }}</div>
             <note-card 
                 v-for="card in cards" 
                 :key="card.id" 
@@ -107,11 +108,15 @@ new Vue({
     data: () => ({
         columns: [[], [], []],
         isColumnLocked: false,
-        lockMessage: ''
+        lockMessage: '',
+        createMessage: ''
     }),
     computed: {
         shouldLockColumn() {
             return this.columns[1].length >= 5;
+        },
+        hasUnsavedCards() {
+            return this.columns[0].some(card => card.isEditing);
         }
     },
     watch: {
@@ -124,17 +129,26 @@ new Vue({
                 this.lockMessage = '';
             }
         },
+        hasUnsavedCards(newVal) {
+            if (newVal) {
+                this.createMessage = 'Сначала сохраните текущую карточку.';
+            } else {
+                this.createMessage = '';
+            }
+        },
         columns: {
             handler() {
                 this.checkProgressForAll();
                 this.isColumnLocked = this.shouldLockColumn;
+                this.lockMessage = this.isColumnLocked ? 'Столбец заблокирован до завершения одной из карточек во втором столбце.' : '';
+                this.createMessage = this.hasUnsavedCards ? 'Сначала сохраните текущую карточку.' : '';
             },
             deep: true
         }
     },
     methods: {
         addCard() {
-            if (!this.isColumnLocked) {
+            if (!this.isColumnLocked && !this.hasUnsavedCards) {
                 const tasks = Array(3).fill().map(() => ({ text: '', completed: false }));
                 
                 this.columns[0].push({
