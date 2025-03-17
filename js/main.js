@@ -80,7 +80,7 @@ Vue.component('note-card', {
 });
 
 Vue.component('task-column', {
-    props: ['title', 'cards', 'maxCards', 'locked'],
+    props: ['title', 'cards', 'maxCards', 'locked', 'message'],
     template: `
         <div class="column">
             <h2>{{ title }}</h2>
@@ -89,6 +89,7 @@ Vue.component('task-column', {
                 @click="$emit('add-card')" 
                 :disabled="cards.length >= maxCards || locked"
             >+ Создать</button>
+            <div v-if="message" class="message">{{ message }}</div>
             <note-card 
                 v-for="card in cards" 
                 :key="card.id" 
@@ -105,19 +106,23 @@ new Vue({
     el: '#app',
     data: () => ({
         columns: [[], [], []],
-        isColumnLocked: false
+        isColumnLocked: false,
+        lockMessage: ''
     }),
     computed: {
         shouldLockColumn() {
-            return this.columns[0].some(card => {
-                const completed = card.tasks.filter(t => t.completed).length;
-                return (completed / card.tasks.length) >= 0.5;
-            });
+            return this.columns[1].length >= 5;
         }
     },
     watch: {
         shouldLockColumn(newVal) {
-            this.isColumnLocked = newVal;
+            if (newVal) {
+                this.isColumnLocked = true;
+                this.lockMessage = 'Столбец заблокирован до завершения одной из карточек во втором столбце.';
+            } else {
+                this.isColumnLocked = false;
+                this.lockMessage = '';
+            }
         },
         columns: {
             handler() {
@@ -129,7 +134,7 @@ new Vue({
     },
     methods: {
         addCard() {
-            if (this.columns[0].length < 3) {
+            if (!this.isColumnLocked) {
                 const tasks = Array(3).fill().map(() => ({ text: '', completed: false }));
                 
                 this.columns[0].push({
@@ -165,7 +170,7 @@ new Vue({
             if (progress >= 100) {
                 card.completedAt = Date.now();
                 this.moveCard(card, 2);
-            } else if (progress >= 50 && card.column === 0) {
+            } else if (progress > 50 && card.column === 0 && this.columns[1].length < 5) {
                 this.moveCard(card, 1);
             }
         },
