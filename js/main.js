@@ -1,15 +1,41 @@
 Vue.component('note-card', {
-    props: ['card'],
+    props: ['card', 'locked'],
     template: `
-        <div class="card">
-            <input type="text" v-model="card.title" placeholder="Название" :disabled="!card.isEditing" @input="validate">
+        <div class="card" :class="{ locked: locked }">
+            <input 
+                type="text" 
+                v-model.trim="card.title" 
+                placeholder="Название" 
+                :disabled="locked || !card.isEditing" 
+                @input="validate"
+            >
             <div v-for="(task, i) in card.tasks" :key="i">
-                <input type="checkbox" v-model="task.completed" :disabled="card.isEditing || !task.text" @change="$emit('change')">
-                <input type="text" v-model="task.text" :disabled="!card.isEditing" @input="validate">
-                <button @click="remove(i)" :disabled="!card.isEditing || card.tasks.length <= 3">-</button>
+                <input 
+                    type="checkbox" 
+                    v-model="task.completed" 
+                    :disabled="locked || card.isEditing || !task.text.trim()" 
+                    @change="$emit('change')"
+                >
+                <input 
+                    type="text" 
+                    v-model.trim="task.text" 
+                    :disabled="locked || !card.isEditing" 
+                    @input="validate"
+                >
+                <button 
+                    @click="remove(i)" 
+                    :disabled="locked || !card.isEditing || card.tasks.length <= 3"
+                >-</button>
             </div>
-            <button @click="add" :disabled="!canAdd">+ Задача</button>
-            <button v-if="card.isEditing" @click="$emit('save-card')" :disabled="!valid">Сохранить</button>
+            <button 
+                @click="add" 
+                :disabled="locked || !canAdd"
+            >+ Задача</button>
+            <button 
+                v-if="card.isEditing" 
+                @click="$emit('save-card')" 
+                :disabled="locked || !valid"
+            >Сохранить</button>
             <div v-if="error" class="error">{{ error }}</div>
             <div v-if="card.completedAt" class="completed-date">
                 Завершено: {{ formatDate(card.completedAt) }}
@@ -21,20 +47,14 @@ Vue.component('note-card', {
     }),
     computed: {
         valid() {
-            if (!this.card.title || this.card.title.trim() === '') return false;
-            if (this.card.tasks.length < 3) return false;
-            for (let task of this.card.tasks) {
-                if (!task.text || task.text.trim() === '') return false;
-            }
-            return true;
+            return this.card.title.trim() && 
+                   this.card.tasks.length >= 3 &&
+                   this.card.tasks.every(t => t.text.trim());
         },
         canAdd() {
-            if (!this.card.isEditing) return false;
-            if (this.card.tasks.length >= 5) return false;
-            for (let task of this.card.tasks) {
-                if (!task.text || task.text.trim() === '') return false;
-            }
-            return true;
+            return this.card.isEditing && 
+                   this.card.tasks.length < 5 && 
+                   this.card.tasks.every(t => t.text.trim());
         }
     },
     methods: {
@@ -46,8 +66,11 @@ Vue.component('note-card', {
         },
         validate() {
             this.error = null;
-            if (!this.card.title || this.card.title.trim() === '') this.error = 'Название обязательно';
-            else if (this.card.tasks.some(t => !t.text || t.text.trim() === '')) this.error = 'Все задачи должны быть заполнены';
+            if (!this.card.title.trim()) {
+                this.error = 'Название обязательно';
+            } else if (this.card.tasks.some(t => !t.text.trim())) {
+                this.error = 'Все задачи должны быть заполнены';
+            }
         },
         formatDate(timestamp) {
             const date = new Date(timestamp);
@@ -57,14 +80,23 @@ Vue.component('note-card', {
 });
 
 Vue.component('task-column', {
-    props: ['title', 'cards', 'maxCards'],
+    props: ['title', 'cards', 'maxCards', 'locked'],
     template: `
         <div class="column">
             <h2>{{ title }}</h2>
-            <button v-if="maxCards === 3" @click="$emit('add-card')" :disabled="cards.length >= maxCards">+ Создать</button>
-            <note-card v-for="card in cards" :key="card.id" :card="card" 
-                @save-card="$emit('save-card', card)" @change="$emit('change', card)">
-            </note-card>
+            <button 
+                v-if="maxCards === 3" 
+                @click="$emit('add-card')" 
+                :disabled="cards.length >= maxCards || locked"
+            >+ Создать</button>
+            <note-card 
+                v-for="card in cards" 
+                :key="card.id" 
+                :card="card" 
+                :locked="locked"
+                @save-card="$emit('save-card', card)" 
+                @change="$emit('change', card)"
+            ></note-card>
         </div>
     `
 });
@@ -72,21 +104,43 @@ Vue.component('task-column', {
 new Vue({
     el: '#app',
     data: () => ({
-        columns: [[], [], []]
+        columns: [[], [], []],
+        isColumnLocked: false
     }),
+    computed: {
+        shouldLockColumn() {
+            return this.columns[0].some(card => {
+                const completed = card.tasks.filter(t => t.completed).length;
+                return (completed / card.tasks.length) >= 0.5;
+            });
+        }
+    },
+    watch: {
+        shouldLockColumn(newVal) {
+            this.isColumnLocked = newVal;
+        },
+        columns: {
+            handler() {
+                this.checkProgressForAll();
+                this.isColumnLocked = this.shouldLockColumn;
+            },
+            deep: true
+        }
+    },
     methods: {
         addCard() {
-            const tasks = [];
-            for (let i = 0; i < 3; i++) tasks.push({ text: '', completed: false });
-            
-            this.columns[0].push({
-                id: Date.now(),
-                title: '',
-                isEditing: true,
-                column: 0,
-                tasks: tasks,
-                completedAt: null
-            });
+            if (this.columns[0].length < 3) {
+                const tasks = Array(3).fill().map(() => ({ text: '', completed: false }));
+                
+                this.columns[0].push({
+                    id: Date.now(),
+                    title: '',
+                    isEditing: true,
+                    column: 0,
+                    tasks: tasks,
+                    completedAt: null
+                });
+            }
         },
         saveCard(card) {
             if (this.validate(card)) {
@@ -95,44 +149,32 @@ new Vue({
             }
         },
         validate(card) {
-            if (!card.title || card.title.trim() === '') return false;
-            if (card.tasks.length < 3) return false;
-            for (let task of card.tasks) {
-                if (!task.text || task.text.trim() === '') return false;
-            }
-            return true;
+            return card.title.trim() && 
+                   card.tasks.length >= 3 &&
+                   card.tasks.every(t => t.text.trim());
+        },
+        checkProgressForAll() {
+            this.columns[0].forEach(card => this.checkProgress(card));
+            this.columns[1].forEach(card => this.checkProgress(card));
         },
         checkProgress(card) {
-            let completed = 0;
-            for (let task of card.tasks) {
-                if (task.completed) completed++;
-            }
-            const progress = (completed / card.tasks.length) * 100;
-            
+            const completed = card.tasks.filter(t => t.completed).length;
+            const totalTasks = card.tasks.length;
+            const progress = (completed / totalTasks) * 100;
+
             if (progress >= 100) {
                 card.completedAt = Date.now();
-                this.move(card, 2);
-            } else if (progress > 50 && card.column === 0) {
-                this.move(card, 1);
+                this.moveCard(card, 2);
+            } else if (progress >= 50 && card.column === 0) {
+                this.moveCard(card, 1);
             }
         },
-        move(card, to) {
-            const fromColumn = this.columns[card.column];
-            const index = fromColumn.indexOf(card);
-            if (index > -1) {
-                const newColumn = this.columns[card.column].filter(c => c !== card);
-                this.columns[card.column] = newColumn;
-                card.column = to;
-                this.columns[to].push(card);
-            }
-        }
-    },
-    watch: {
-        columns: {
-            handler() {
-                this.columns[0].concat(this.columns[1]).forEach(c => this.checkProgress(c));
-            },
-            deep: true
+        moveCard(card, toColumn) {
+            const currentColumn = this.columns[card.column];
+            const newColumn = currentColumn.filter(c => c.id !== card.id);
+            this.$set(this.columns, card.column, newColumn);
+            card.column = toColumn;
+            this.columns[toColumn].push(card);
         }
     }
 });
