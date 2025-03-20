@@ -18,6 +18,7 @@
                 :locked="isColumnLocked"
                 :message="lockMessage"
                 :createMessage="createMessage"
+                :is-app-locked="isAppLocked"
                 @add-card="addCard" 
                 @save-card="saveCard"
             ></task-column>
@@ -25,11 +26,13 @@
                 title="В процессе (макс. 5)" 
                 :cards="columns[1]" 
                 :max-cards="5"
+                :is-app-locked="isAppLocked"
             ></task-column>
             <task-column 
                 title="Готово" 
                 :cards="columns[2]" 
                 :max-cards="Infinity"
+                :is-app-locked="isAppLocked"
             ></task-column>
         </div>
     </div>
